@@ -12,8 +12,12 @@ import static java.lang.Integer.parseInt;
 public class CompukterAgent extends Agent {
 
     List<TaskAgent> taskAgentList=new ArrayList<>();
+    public double average;
+    public double timeOfWork;
 
     int capacity;
+
+
 
     @Override
     protected void setup() {
@@ -39,6 +43,13 @@ public class CompukterAgent extends Agent {
             DFService.register(this, dfd);
         } catch (FIPAException fe) {
             fe.printStackTrace();
+        }
+    }
+
+    public void getTimeOfWork(){
+        float time = 0;
+        for(TaskAgent taskAgent:taskAgentList){
+
         }
     }
 
