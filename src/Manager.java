@@ -1,4 +1,5 @@
 import jade.core.Agent;
+import jade.core.behaviours.TickerBehaviour;
 import jade.domain.DFService;
 import jade.domain.FIPAAgentManagement.DFAgentDescription;
 import jade.domain.FIPAAgentManagement.ServiceDescription;
@@ -20,6 +21,18 @@ public class Manager extends Agent {
             DFService.register(this, dfd);
         } catch (FIPAException fe) {
             fe.printStackTrace();
+        }
+    }
+
+    public class Manager2 extends TickerBehaviour{
+
+        public Manager2(Agent a, long period) {
+            super(a, period);
+        }
+
+        @Override
+        protected void onTick() {
+
         }
     }
 }

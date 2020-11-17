@@ -1,8 +1,13 @@
+import jade.core.AID;
 import jade.core.Agent;
+import jade.core.behaviours.OneShotBehaviour;
 import jade.domain.DFService;
 import jade.domain.FIPAAgentManagement.DFAgentDescription;
 import jade.domain.FIPAAgentManagement.ServiceDescription;
 import jade.domain.FIPAException;
+import jade.lang.acl.ACLMessage;
+
+import java.util.HashSet;
 
 import static java.lang.Integer.parseInt;
 
@@ -35,8 +40,41 @@ public class TaskAgent extends Agent {
         } catch (FIPAException fe) {
             fe.printStackTrace();
         }
+        addBehaviour(new InitBehaviour());
 
     }
+
+    public class InitBehaviour extends OneShotBehaviour{
+
+
+        @Override
+        public void action() {
+
+            AID compukter=null;
+            DFAgentDescription template = new DFAgentDescription();
+            ServiceDescription sd = new ServiceDescription();
+            sd.setType("compukter");
+            template.addServices(sd);
+
+            try {
+                DFAgentDescription[] result = DFService.search(myAgent, template);
+                compukter= result[0].getName();
+            } catch (FIPAException fe) {
+                fe.printStackTrace();
+            }
+
+            ACLMessage message = new ACLMessage(ACLMessage.INFORM);
+            message.addReceiver(compukter);
+           // message.setContent(complexity+"_"+myAgent.getAID());
+            message.setReplyWith(("ready" + System.currentTimeMillis()));
+            System.out.println(myAgent.getLocalName()+" Send message to first pk");
+            myAgent.send(message);
+            block();
+
+        }
+    }
+
+
 
     @Override
     protected void takeDown() {
