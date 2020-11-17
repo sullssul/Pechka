@@ -47,10 +47,12 @@ public class CompukterAgent extends Agent {
     }
 
     public void getTimeOfWork(){
-        float time = 0;
+        double time = 0;
         for(TaskAgent taskAgent:taskAgentList){
-
+                time+=taskAgent.complexity;
         }
+        timeOfWork=time/capacity;
+
     }
 
     @Override

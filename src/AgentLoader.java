@@ -71,6 +71,7 @@ public class AgentLoader extends Agent {
         int cnt;
         List<Object[]> objects=new ArrayList<>();
         FileReader fr = null;
+        String line;
         try {
             fr = new FileReader(file);
         } catch (FileNotFoundException e) {
@@ -78,11 +79,11 @@ public class AgentLoader extends Agent {
         }
         BufferedReader reader = new BufferedReader(fr);
         try {
-            String line = reader.readLine();
+            line = reader.readLine();
             cnt = parseInt(line);
+            line = reader.readLine();
             for (int i = 0; i < cnt; i++) {
 
-                line = reader.readLine();
                 int capacity = parseInt(line.substring(0, line.indexOf("_")));
                 String name = line.substring(line.indexOf("_") + 1);
                 Object[] args = new Object[]
@@ -91,7 +92,7 @@ public class AgentLoader extends Agent {
                         };
 
                 objects.add(args);
-
+                line = reader.readLine();
 
             }
 

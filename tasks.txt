@@ -1,0 +1,9 @@
+7
+600_task1
+300_task2
+400_task3
+500_task4
+200_task5
+200_task6
+100_task7
+100_task8
