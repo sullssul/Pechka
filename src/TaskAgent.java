@@ -46,31 +46,43 @@ public class TaskAgent extends Agent {
 
     public class InitBehaviour extends OneShotBehaviour{
 
-
+        //отправляем сообщения менеджеру и компьютеру о своём создании
         @Override
         public void action() {
-
-            AID compukter=null;
+            //сначала ищем компик
+            AID compukter = null;
             DFAgentDescription template = new DFAgentDescription();
             ServiceDescription sd = new ServiceDescription();
             sd.setType("compukter");
             template.addServices(sd);
-
             try {
                 DFAgentDescription[] result = DFService.search(myAgent, template);
-                compukter= result[0].getName();
+                compukter = result[0].getName();
+            } catch (FIPAException fe) {
+                fe.printStackTrace();
+            }
+            //потом ищем манагера (скорее всего не нужно будет)
+            AID manager = null;
+            template = new DFAgentDescription();
+            sd = new ServiceDescription();
+            sd.setType("manager");
+            template.addServices(sd);
+            try {
+                DFAgentDescription[] result = DFService.search(myAgent, template);
+                if (result.length != 0) {
+                    manager = result[0].getName();
+                } else {
+                    return;
+                }
             } catch (FIPAException fe) {
                 fe.printStackTrace();
             }
 
-            ACLMessage message = new ACLMessage(ACLMessage.INFORM);
+            ACLMessage message = new ACLMessage(ACLMessage.REQUEST);
+            message.addReceiver(manager);
             message.addReceiver(compukter);
-           // message.setContent(complexity+"_"+myAgent.getAID());
-            message.setReplyWith(("ready" + System.currentTimeMillis()));
-            System.out.println(myAgent.getLocalName()+" Send message to first pk");
+            message.setContent(String.valueOf(complexity));
             myAgent.send(message);
-            block();
-
         }
     }
 
