@@ -66,25 +66,8 @@ public class TaskAgent extends Agent {
             } catch (FIPAException fe) {
                 fe.printStackTrace();
             }
-            //потом ищем манагера (скорее всего не нужно будет)
-            AID manager = null;
-            template = new DFAgentDescription();
-            sd = new ServiceDescription();
-            sd.setType("manager");
-            template.addServices(sd);
-            try {
-                DFAgentDescription[] result = DFService.search(myAgent, template);
-                if (result.length != 0) {
-                    manager = result[0].getName();
-                } else {
-                    return;
-                }
-            } catch (FIPAException fe) {
-                fe.printStackTrace();
-            }
 
             ACLMessage message = new ACLMessage(ACLMessage.REQUEST);
-            message.addReceiver(manager);
             message.addReceiver(compukter);
             message.setContent(String.valueOf(complexity));
             myAgent.send(message);
@@ -110,6 +93,7 @@ public class TaskAgent extends Agent {
                 message.addReceiver(compukter);
                 message.setContent(String.valueOf(complexity));
                 myAgent.send(message);
+                System.out.println("Задание " + getLocalName() + " прикреплено к " + compukter.getLocalName());
             } else
                 block();
         }
