@@ -1,9 +1,0 @@
-<component name="libraryTable">
-  <library name="jade1">
-    <CLASSES>
-      <root url="jar://$PROJECT_DIR$/jade/lib/jade.jar!/" />
-    </CLASSES>
-    <JAVADOC />
-    <SOURCES />
-  </library>
-</component>
