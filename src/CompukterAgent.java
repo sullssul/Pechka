@@ -66,9 +66,9 @@ public class CompukterAgent extends Agent {
         public void action() {
             switch(step){
             case 0:
-                //MessageTemplate mtp = MessageTemplate.or(MessageTemplate.or(MessageTemplate.MatchPerformative(ACLMessage.REQUEST),
-                //        MessageTemplate.MatchPerformative(ACLMessage.INFORM)), MessageTemplate.MatchPerformative(ACLMessage.PROPOSE));
-                ACLMessage msg = myAgent.receive();
+                MessageTemplate mtp = MessageTemplate.or(MessageTemplate.or(MessageTemplate.MatchPerformative(ACLMessage.REQUEST),
+                        MessageTemplate.MatchPerformative(ACLMessage.INFORM)), MessageTemplate.MatchPerformative(ACLMessage.PROPOSE));
+                ACLMessage msg = myAgent.receive(mtp);
                 if (msg != null) {
                     switch (msg.getPerformative()) {
                         //при типе сообщения REQUEST добавляем агент к компьютеру
@@ -90,27 +90,7 @@ public class CompukterAgent extends Agent {
                                     return o1.compareTo(o2);
                                 }
                             });
-                            System.out.println(getLocalName() + " взял " + task_aid.getLocalName());
                             NotifyAllCompuktersExcept(null);
-
-
-
-
-
-
-
-
-
-                            ///////////ВЫВОД СОСТОЯНИЯ АГЕНТА
-                            Print();
-                            ///////////////////////////////////////
-
-
-
-
-
-
-
                             break;
                             //при INFORM удаляем комп, который обновился, из ЧС
                         case ACLMessage.INFORM:
@@ -151,8 +131,8 @@ public class CompukterAgent extends Agent {
             case 1:
                 //ждем сообщения согласия на согласие или непринятие обмена, также отказываем всем кто хочет поменяться
                 MessageTemplate mt = MessageTemplate.or(MessageTemplate.or(MessageTemplate.or(MessageTemplate.MatchPerformative(ACLMessage.REJECT_PROPOSAL),
-                        MessageTemplate.MatchPerformative(ACLMessage.ACCEPT_PROPOSAL)), MessageTemplate.MatchPerformative(ACLMessage.PROPOSE)),
-                        MessageTemplate.MatchPerformative(ACLMessage.REFUSE));
+                        MessageTemplate.MatchPerformative(ACLMessage.ACCEPT_PROPOSAL)), MessageTemplate.MatchPerformative(ACLMessage.REFUSE)),
+                        MessageTemplate.MatchPerformative(ACLMessage.PROPOSE));
                 ACLMessage reply = myAgent.receive(mt);
 
                 if (reply != null)
@@ -179,27 +159,6 @@ public class CompukterAgent extends Agent {
                                 taskUnitCostList.subList(0, val).clear();
                                 step = 0;
                                 myAgent.send(req_to_tasks_msg);
-
-
-
-
-
-
-
-
-
-
-
-                                ///////////ВЫВОД СОСТОЯНИЯ АГЕНТА
-                                Print();
-                                ///////////////////////////////////////
-
-
-
-
-
-
-
 
                                 NotifyAllCompuktersExcept(reply.getSender());
                             }
@@ -251,21 +210,6 @@ public class CompukterAgent extends Agent {
                             return o1.compareTo(o2);
                         }
                     });
-                    System.out.println(getLocalName() + " взял " + task_aid.getLocalName());
-                    NotifyAllCompuktersExcept(null);
-
-
-
-
-
-
-                    ///////////ВЫВОД СОСТОЯНИЯ АГЕНТА
-                    Print();
-                    ///////////////////////////////////////
-
-
-
-
 
                     //если получили все задания возвращаемся в обычный режим
                     if (tasksReceived == tasksExpected) {
@@ -274,6 +218,7 @@ public class CompukterAgent extends Agent {
                     }
                 } else
                     block();
+                break;
             }
         }
 
@@ -285,17 +230,17 @@ public class CompukterAgent extends Agent {
             StringBuilder outpp = new StringBuilder();
             double sum = 0;
             for (double k : taskUnitCostList) {
-                outpp.append(k).append(" ");
+                outpp.append(String.format(Locale.US,"%.2f", k)).append(" ");
                 sum += k;
             }
             //System.out.println(getLocalName() + " ГОВОРИТ " + outp);
-            System.out.println(getLocalName() + " t: " + sum + " contains:" + outpp);
+            System.out.println(getLocalName() + " N: " + taskUnitCostList.size() + " t: " + sum + " contains:" + outpp);
         }
 
         public void PerformExchange(ACLMessage msg) {
             blackList.add(msg.getSender());
             String[] input = msg.getContent().split(" ");
-            List<Integer> tasks_complexity = new ArrayList<>();
+            List<Integer> ext_tasks_complexity = new ArrayList<>();
             List<Double> ext_unit_cost = new ArrayList<>();
             int ext_capacity = parseInt(input[0]);
             int sum_complexity = 0;
@@ -303,26 +248,26 @@ public class CompukterAgent extends Agent {
             for (int i = 1; i < input.length; i++) {
                 int k = parseInt(input[i]);
                 sum_complexity += k;
-                tasks_complexity.add(k);
-                ext_unit_cost.add((double) (k / ext_capacity));
+                ext_tasks_complexity.add(k);
+                ext_unit_cost.add(k / (double) ext_capacity);
             }
-            double ext_TimeOfWork = sum_complexity / ext_capacity;
+            double ext_TimeOfWork = sum_complexity / (double) ext_capacity;
             double our_TimeOfWork = getTimeOfWork();
 
 
             //если мы работаем больше чем другой агент, то пытаемся отдать ему задания, начиная с самых простых
             if (ext_TimeOfWork < our_TimeOfWork) {
-                double diff_time = (our_TimeOfWork - ext_TimeOfWork) / 2;
                 int index_of_last_suitable_task = 0;
                 int size = taskAgentList.size();
 
-                while (diff_time >= 0 && index_of_last_suitable_task < size) {
+                while (our_TimeOfWork > ext_TimeOfWork && index_of_last_suitable_task < size) {
                     //предполагаем как изменится время если мы отдадим задание
                     double ext_comp_gain = taskAgentList.get(index_of_last_suitable_task).complexity / (double)ext_capacity;
                     double our_comp_loss = taskUnitCostList.get(index_of_last_suitable_task);
                     //если мы освободили больше времени, чем получил другой агент, то меняемся
-                    if (our_comp_loss > ext_comp_gain){
-                        diff_time = diff_time + ext_comp_gain - our_comp_loss;
+                    if (our_comp_loss >= ext_comp_gain){
+                        our_TimeOfWork -= our_comp_loss;
+                        ext_TimeOfWork += ext_comp_gain;
                         index_of_last_suitable_task++;
                     }
                     //если освободили меньше времени, чем получил другой агент, то не меняемся
@@ -346,25 +291,6 @@ public class CompukterAgent extends Agent {
                     taskUnitCostList.subList(0, index_of_last_suitable_task).clear();
                     myAgent.send(message);
 
-
-
-
-
-
-
-
-
-
-                    ///////////ВЫВОД СОСТОЯНИЯ АГЕНТА
-                    Print();
-                    ///////////////////////////////////////
-
-
-
-
-
-
-
                     //уведомляем всех о своём изменении
                     NotifyAllCompuktersExcept(msg.getSender());
                     return;
@@ -372,17 +298,17 @@ public class CompukterAgent extends Agent {
             }
             //если мы работаем меньше чем другой агент, пытаемся кого нибудь взять
             else {
-                double diff_time = (ext_TimeOfWork - our_TimeOfWork) / 2;
                 int index_of_last_suitable_task = 0;
                 int size = ext_unit_cost.size();
 
-                while (diff_time >= 0 && index_of_last_suitable_task < size) {
+                while (our_TimeOfWork < ext_TimeOfWork && index_of_last_suitable_task < size) {
                     //предполагаем как изменится время если мы ВОЗЬМЕМ задание
                     double ext_comp_loss = ext_unit_cost.get(index_of_last_suitable_task);
-                    double our_comp_gain = tasks_complexity.get(index_of_last_suitable_task) / (double) capacity;
+                    double our_comp_gain = ext_tasks_complexity.get(index_of_last_suitable_task) / (double) capacity;
                     //если другой агент освободил больше времени, чем мы получили, то меняемся
-                    if (ext_comp_loss > our_comp_gain){
-                        diff_time = diff_time + our_comp_gain - ext_comp_loss;
+                    if (ext_comp_loss >= our_comp_gain){
+                        our_TimeOfWork += our_comp_gain;
+                        ext_TimeOfWork -= ext_comp_loss;
                         index_of_last_suitable_task++;
                     }
                     //если освободили меньше времени, чем получил другой агент, то не меняемся
@@ -434,6 +360,28 @@ public class CompukterAgent extends Agent {
             ACLMessage message = new ACLMessage(ACLMessage.INFORM);
             for (DFAgentDescription description : result)
                 if (description.getName() != myAgent.getAID() && description.getName() != excludedAgent) message.addReceiver(description.getName());
+
+
+//                //менеджера тоже уведомляем
+//            AID manager = null;
+//            template = new DFAgentDescription();
+//            sd = new ServiceDescription();
+//            sd.setType("manager");
+//            template.addServices(sd);
+//            try {
+//                DFAgentDescription[] res = DFService.search(myAgent, template);
+//                if (result.length != 0) {
+//                    manager = res[0].getName();
+//                } else {
+//                    return;
+//                }
+//            } catch (FIPAException fe) {
+//                fe.printStackTrace();
+//            }
+//            message.addReceiver(manager);
+//            message.setContent(String.valueOf(getTimeOfWork()));
+            Print();
+
             myAgent.send(message);
         }
 
