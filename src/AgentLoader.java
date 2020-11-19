@@ -1,4 +1,9 @@
+import jade.core.AID;
 import jade.core.Agent;
+import jade.domain.DFService;
+import jade.domain.FIPAAgentManagement.DFAgentDescription;
+import jade.domain.FIPAAgentManagement.ServiceDescription;
+import jade.domain.FIPAException;
 import jade.wrapper.AgentController;
 import jade.wrapper.StaleProxyException;
 
@@ -19,24 +24,38 @@ public class AgentLoader extends Agent {
         createAgents(file,"CompukterAgent");
         createAgents(file1,"TaskAgent");
 
-//        AgentController ac = null;
-//        try {
-//            ac = getContainerController().createNewAgent("Manager","Manager",null);
-//        } catch (StaleProxyException e) {
-//            e.printStackTrace();
-//        }
-//
-//        if (ac != null) {
-//            try {
-//                ac.start();
-//            } catch (StaleProxyException e) {
-//                e.printStackTrace();
-//            }
-//        }
 
 
+        AID manager = null;
+        DFAgentDescription template = new DFAgentDescription();
+        ServiceDescription sd = new ServiceDescription();
+        sd.setType("manager");
+        template.addServices(sd);
+        try {
+            DFAgentDescription[] res = DFService.search(this, template);
+            if (res.length != 0) {
+                manager = res[0].getName();
+            } else {
+                return;
+            }
+        } catch (FIPAException fe) {
+            fe.printStackTrace();
+        }
 
+        AgentController ac = null;
+        try {
+            ac = getContainerController().createNewAgent("Manager","Manager",null);
+        } catch (StaleProxyException e) {
+            e.printStackTrace();
+        }
 
+        if (ac != null) {
+            try {
+                ac.start();
+            } catch (StaleProxyException e) {
+                e.printStackTrace();
+            }
+        }
 
 
     }
