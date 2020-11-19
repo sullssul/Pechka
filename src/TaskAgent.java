@@ -67,7 +67,7 @@ public class TaskAgent extends Agent {
                 fe.printStackTrace();
             }
 
-            ACLMessage message = new ACLMessage(ACLMessage.REQUEST);
+            ACLMessage message = new ACLMessage(ACLMessage.PROPAGATE);
             message.addReceiver(compukter);
             message.setContent(String.valueOf(complexity));
             myAgent.send(message);
@@ -93,7 +93,7 @@ public class TaskAgent extends Agent {
                 message.addReceiver(compukter);
                 message.setContent(String.valueOf(complexity));
                 myAgent.send(message);
-                System.out.println("Задание " + getLocalName() + " прикреплено к " + compukter.getLocalName());
+                //System.out.println("Задание " + getLocalName() + " прикреплено к " + compukter.getLocalName());
             } else
                 block();
         }
