@@ -12,27 +12,27 @@ public class AgentLoader extends Agent {
 
     @Override
     protected void setup() {
-
-        File file = new File("compukteri.txt");
-        File file1 = new File("tasks.txt");
+        Object args[] = getArguments();
+        File file = new File((String)args[0]);
+        File file1 = new File((String)args[1]);
 
         createAgents(file,"CompukterAgent");
         createAgents(file1,"TaskAgent");
 
-        AgentController ac = null;
-        try {
-            ac = getContainerController().createNewAgent("Manager","Manager",null);
-        } catch (StaleProxyException e) {
-            e.printStackTrace();
-        }
-
-        if (ac != null) {
-            try {
-                ac.start();
-            } catch (StaleProxyException e) {
-                e.printStackTrace();
-            }
-        }
+//        AgentController ac = null;
+//        try {
+//            ac = getContainerController().createNewAgent("Manager","Manager",null);
+//        } catch (StaleProxyException e) {
+//            e.printStackTrace();
+//        }
+//
+//        if (ac != null) {
+//            try {
+//                ac.start();
+//            } catch (StaleProxyException e) {
+//                e.printStackTrace();
+//            }
+//        }
 
 
 
