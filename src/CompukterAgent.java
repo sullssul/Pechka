@@ -45,7 +45,11 @@ public class CompukterAgent extends Agent {
         } catch (FIPAException fe) {
             fe.printStackTrace();
         }
-
+//        try {
+//            Thread.sleep(20000);
+//        } catch (InterruptedException e) {
+//            e.printStackTrace();
+//        }
         this.addBehaviour(new Requester());
 
     }
@@ -66,13 +70,13 @@ public class CompukterAgent extends Agent {
         public void action() {
             switch(step){
             case 0:
-                MessageTemplate mtp = MessageTemplate.or(MessageTemplate.or(MessageTemplate.MatchPerformative(ACLMessage.REQUEST),
-                        MessageTemplate.MatchPerformative(ACLMessage.INFORM)), MessageTemplate.MatchPerformative(ACLMessage.PROPOSE));
+                MessageTemplate mtp = MessageTemplate.or(MessageTemplate.or(MessageTemplate.MatchPerformative(ACLMessage.PROPAGATE),
+                        MessageTemplate.MatchPerformative(ACLMessage.CFP)), MessageTemplate.MatchPerformative(ACLMessage.PROPOSE));
                 ACLMessage msg = myAgent.receive(mtp);
                 if (msg != null) {
                     switch (msg.getPerformative()) {
                         //при типе сообщения REQUEST добавляем агент к компьютеру
-                        case ACLMessage.REQUEST:
+                        case ACLMessage.PROPAGATE:
                             int cap = parseInt(msg.getContent());
                             AID task_aid = msg.getSender();
                             Task task = new Task(task_aid, cap);
@@ -93,7 +97,7 @@ public class CompukterAgent extends Agent {
                             NotifyAllCompuktersExcept(null);
                             break;
                             //при INFORM удаляем комп, который обновился, из ЧС
-                        case ACLMessage.INFORM:
+                        case ACLMessage.CFP:
                             blackList.remove(msg.getSender());
                             break;
                         case ACLMessage.PROPOSE:
@@ -101,7 +105,6 @@ public class CompukterAgent extends Agent {
                             break;
                     }
                 } else {
-
                     //если сообщений нет то ищем компы не из черного списка
                     DFAgentDescription template = new DFAgentDescription();
                     ServiceDescription sd = new ServiceDescription();
@@ -117,7 +120,7 @@ public class CompukterAgent extends Agent {
                     //ищем первый попавшийся подходящий комп
                     for (int i = 0; i < result.length; i++) {
                         AID res = result[i].getName();
-                        if (!blackList.contains(res) && res != myAgent.getAID()) {
+                        if (!blackList.contains(res) && !res.toString().equals(myAgent.getAID().toString())) {
                             firstSuitableComp = res;
                             break;
                         }
@@ -183,40 +186,42 @@ public class CompukterAgent extends Agent {
                 MessageTemplate Mt = MessageTemplate.or(MessageTemplate.MatchPerformative(ACLMessage.SUBSCRIBE),
                         MessageTemplate.MatchPerformative(ACLMessage.PROPOSE));
                 ACLMessage trade_mes = myAgent.receive(Mt);
+                if (trade_mes != null)
+                switch (trade_mes.getPerformative()) {
+                    case ACLMessage.SUBSCRIBE:
+                        tasksReceived++;
+                        int cap = parseInt(trade_mes.getContent());
+                        AID task_aid = trade_mes.getSender();
+                        Task task = new Task(task_aid, cap);
+                        taskAgentList.add(task);
+                        taskUnitCostList.add(task.complexity / (double)capacity);
+                        taskAgentList.sort(new Comparator<Task>() {
+                            @Override
+                            public int compare(Task o1, Task o2) {
+                                return Integer.compare(o1.complexity, o2.complexity);
+                            }
+                        });
+                        taskUnitCostList.sort(new Comparator<Double>() {
+                            @Override
+                            public int compare(Double o1, Double o2) {
+                                return o1.compareTo(o2);
+                            }
+                        });
 
-                if (trade_mes != null) {
-                    if (trade_mes.getPerformative() == ACLMessage.PROPOSE) {
+                        //если получили все задания возвращаемся в обычный режим
+                        if (tasksReceived == tasksExpected) {
+                            tasksReceived = 0;
+                            step = 0;
+                            NotifyAllCompuktersExcept(tradeAgent);
+                        }
+                        break;
+                    case ACLMessage.PROPOSE:
                         ACLMessage reject_msg = new ACLMessage(ACLMessage.REFUSE);
                         reject_msg.addReceiver(trade_mes.getSender());
                         myAgent.send(reject_msg);
-                        return;
-                    }
-                    tasksReceived++;
-
-                    int cap = parseInt(trade_mes.getContent());
-                    AID task_aid = trade_mes.getSender();
-                    Task task = new Task(task_aid, cap);
-                    taskAgentList.add(task);
-                    taskUnitCostList.add(task.complexity / (double)capacity);
-                    taskAgentList.sort(new Comparator<Task>() {
-                        @Override
-                        public int compare(Task o1, Task o2) {
-                            return Integer.compare(o1.complexity, o2.complexity);
-                        }
-                    });
-                    taskUnitCostList.sort(new Comparator<Double>() {
-                        @Override
-                        public int compare(Double o1, Double o2) {
-                            return o1.compareTo(o2);
-                        }
-                    });
-
-                    //если получили все задания возвращаемся в обычный режим
-                    if (tasksReceived == tasksExpected) {
-                        step = 0;
-                        NotifyAllCompuktersExcept(tradeAgent);
-                    }
-                } else
+                        break;
+                }
+                else
                     block();
                 break;
             }
@@ -265,14 +270,12 @@ public class CompukterAgent extends Agent {
                     double ext_comp_gain = taskAgentList.get(index_of_last_suitable_task).complexity / (double)ext_capacity;
                     double our_comp_loss = taskUnitCostList.get(index_of_last_suitable_task);
                     //если мы освободили больше времени, чем получил другой агент, то меняемся
-                    if (our_comp_loss >= ext_comp_gain){
                         our_TimeOfWork -= our_comp_loss;
                         ext_TimeOfWork += ext_comp_gain;
                         index_of_last_suitable_task++;
-                    }
+
                     //если освободили меньше времени, чем получил другой агент, то не меняемся
-                    else
-                        break;
+
                 }
                 //если нашли подходящие задания
                 if (index_of_last_suitable_task > 0) {
@@ -297,7 +300,7 @@ public class CompukterAgent extends Agent {
                 }
             }
             //если мы работаем меньше чем другой агент, пытаемся кого нибудь взять
-            else {
+            if (ext_TimeOfWork > our_TimeOfWork) {
                 int index_of_last_suitable_task = 0;
                 int size = ext_unit_cost.size();
 
@@ -306,14 +309,12 @@ public class CompukterAgent extends Agent {
                     double ext_comp_loss = ext_unit_cost.get(index_of_last_suitable_task);
                     double our_comp_gain = ext_tasks_complexity.get(index_of_last_suitable_task) / (double) capacity;
                     //если другой агент освободил больше времени, чем мы получили, то меняемся
-                    if (ext_comp_loss >= our_comp_gain){
                         our_TimeOfWork += our_comp_gain;
                         ext_TimeOfWork -= ext_comp_loss;
                         index_of_last_suitable_task++;
-                    }
+
                     //если освободили меньше времени, чем получил другой агент, то не меняемся
-                    else
-                        break;
+
                 }
                 //если нашли подходящее
                 if (index_of_last_suitable_task > 0) {
@@ -357,9 +358,9 @@ public class CompukterAgent extends Agent {
             } catch (FIPAException fe) {
                 fe.printStackTrace();
             }
-            ACLMessage message = new ACLMessage(ACLMessage.INFORM);
+            ACLMessage message = new ACLMessage(ACLMessage.CFP);
             for (DFAgentDescription description : result)
-                if (description.getName() != myAgent.getAID() && description.getName() != excludedAgent) message.addReceiver(description.getName());
+                if (!description.getName().toString().equals(myAgent.getAID().toString()) && excludedAgent != null && !description.getName().toString().equals(excludedAgent.toString())) message.addReceiver(description.getName());
 
 
 //                //менеджера тоже уведомляем
