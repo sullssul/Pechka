@@ -1,6 +1,7 @@
 import jade.core.AID;
 import jade.core.Agent;
 import jade.core.behaviours.CyclicBehaviour;
+import jade.core.behaviours.OneShotBehaviour;
 import jade.core.behaviours.TickerBehaviour;
 import jade.domain.DFService;
 import jade.domain.FIPAAgentManagement.DFAgentDescription;
@@ -33,26 +34,34 @@ public class Manager extends Agent {
         } catch (FIPAException fe) {
             fe.printStackTrace();
         }
+        try {
+            Thread.sleep(5000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        addBehaviour(new GetRespondFromAll());
     }
 
-    public class TasksReceiver extends CyclicBehaviour {
+    public class GetRespondFromAll extends OneShotBehaviour {
 
 
         @Override
         public void action() {
-            ACLMessage msg = myAgent.receive();
-            if (msg != null) {
-                switch (msg.getPerformative()) {
-                    //при типе сообщения REQUEST добавляем агент к менеджеру (помимо компьютера)
-                    case ACLMessage.REQUEST:
-                        int cap = parseInt(msg.getContent());
-                        AID task_aid = msg.getSender();
-                        Task task = new Task(task_aid, cap);
-                        tasks.add(task);
-                }
-            } else {
-                block();
+            DFAgentDescription template = new DFAgentDescription();
+            ServiceDescription sd = new ServiceDescription();
+            sd.setType("compukter");
+            template.addServices(sd);
+            DFAgentDescription[] result = null;
+            try {
+                result = DFService.search(myAgent, template);
+            } catch (FIPAException fe) {
+                fe.printStackTrace();
             }
+            ACLMessage STOP_message = new ACLMessage(ACLMessage.CANCEL);
+            for (DFAgentDescription description : result)
+                STOP_message.addReceiver(description.getName());
+            System.out.println("ВСЕМ СТОЯТЬ");
+            myAgent.send(STOP_message);
         }
     }
 }

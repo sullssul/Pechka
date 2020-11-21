@@ -58,6 +58,7 @@ public class CompukterAgent extends Agent {
         //компьютеры, с которыми не состоялся обмен
         HashSet<AID> blackList = new HashSet<>();
         private int step = 0;
+        Boolean STOP = false;
 
         private int tasksExpected = 0; //число агентов, которые должны придти к нам после обмена (шаг 2)
         private int tasksReceived = 0;
@@ -70,8 +71,9 @@ public class CompukterAgent extends Agent {
         public void action() {
             switch(step){
             case 0:
-                MessageTemplate mtp = MessageTemplate.or(MessageTemplate.or(MessageTemplate.MatchPerformative(ACLMessage.PROPAGATE),
-                        MessageTemplate.MatchPerformative(ACLMessage.CFP)), MessageTemplate.MatchPerformative(ACLMessage.PROPOSE));
+                MessageTemplate mtp = MessageTemplate.or(MessageTemplate.or(MessageTemplate.or(MessageTemplate.MatchPerformative(ACLMessage.PROPAGATE),
+                        MessageTemplate.MatchPerformative(ACLMessage.CFP)), MessageTemplate.MatchPerformative(ACLMessage.PROPOSE)),
+                        MessageTemplate.MatchPerformative(ACLMessage.CANCEL));
                 ACLMessage msg = myAgent.receive(mtp);
                 if (msg != null) {
                     switch (msg.getPerformative()) {
@@ -102,6 +104,10 @@ public class CompukterAgent extends Agent {
                             break;
                         case ACLMessage.PROPOSE:
                             PerformExchange(msg);
+                            break;
+                        case ACLMessage.CANCEL:
+                            Print();
+                            STOP = true;
                             break;
                     }
                 } else {
@@ -239,7 +245,7 @@ public class CompukterAgent extends Agent {
                 sum += k;
             }
             //System.out.println(getLocalName() + " ГОВОРИТ " + outp);
-            System.out.println(getLocalName() + " N: " + taskUnitCostList.size() + " t: " + sum + " contains:" + outpp);
+            System.out.println(getLocalName() + " N: " + taskUnitCostList.size() + " t: " + String.format(Locale.US,"%.2f", sum) + " contains:" + outp);
         }
 
         public void PerformExchange(ACLMessage msg) {
@@ -388,7 +394,7 @@ public class CompukterAgent extends Agent {
 
         @Override
         public boolean done() {
-            return false;
+            return STOP;
         }
     }
 
