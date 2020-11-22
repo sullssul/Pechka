@@ -56,8 +56,9 @@ public class CompukterAgent extends Agent {
 
     public class Requester extends Behaviour {
         //компьютеры, с которыми не состоялся обмен
-        HashSet<AID> blackList = new HashSet<>();
+        HashSet<String> blackList = new HashSet<>();
         private int step = 0;
+
         Boolean STOP = false;
 
         private int tasksExpected = 0; //число агентов, которые должны придти к нам после обмена (шаг 2)
@@ -79,9 +80,11 @@ public class CompukterAgent extends Agent {
                     switch (msg.getPerformative()) {
                         //при типе сообщения REQUEST добавляем агент к компьютеру
                         case ACLMessage.PROPAGATE:
-                            int cap = parseInt(msg.getContent());
+                            String str = msg.getContent();
+                            int cap = parseInt(str.substring(0, str.indexOf("_")));
+                            String name = str.substring(str.indexOf("_") + 1);
                             AID task_aid = msg.getSender();
-                            Task task = new Task(task_aid, cap);
+                            Task task = new Task(task_aid, cap, name);
                             taskAgentList.add(task);
                             taskUnitCostList.add(task.complexity / (double)capacity);
                             taskAgentList.sort(new Comparator<Task>() {
@@ -100,14 +103,17 @@ public class CompukterAgent extends Agent {
                             break;
                             //при INFORM удаляем комп, который обновился, из ЧС
                         case ACLMessage.CFP:
-                            blackList.remove(msg.getSender());
+                            blackList.remove(msg.getSender().toString());
+                            NotifyManager(false);
                             break;
                         case ACLMessage.PROPOSE:
                             PerformExchange(msg);
                             break;
                         case ACLMessage.CANCEL:
+                            System.out.println(getLocalName() + " умер");
                             Print();
                             STOP = true;
+                            doDelete();
                             break;
                     }
                 } else {
@@ -127,11 +133,13 @@ public class CompukterAgent extends Agent {
                     ArrayList<Integer> indexes = new ArrayList<>();
                     for (int i = 0; i < result.length; i++) {
                         AID res = result[i].getName();
-                        if (!blackList.contains(res) && !res.toString().equals(myAgent.getAID().toString()))
+                        if (!blackList.contains(res.toString()) && !res.toString().equals(myAgent.getAID().toString()))
                             indexes.add(i);
                     }
+                    //если черный список забит останавливаем агента
+                    if (indexes.size() == 0) NotifyManager(true);
                     Random rand = new Random();
-                    if (indexes.size() > 0) firstSuitableComp = result[rand.nextInt(indexes.size())].getName();
+                    if (indexes.size() > 0) firstSuitableComp = result[indexes.get(rand.nextInt(indexes.size()))].getName();
                     if (firstSuitableComp != null)
                         ProposeExchange(firstSuitableComp);
                     else
@@ -148,7 +156,7 @@ public class CompukterAgent extends Agent {
                 if (reply != null)
                     switch(reply.getPerformative()) {
                         case ACLMessage.ACCEPT_PROPOSAL:
-                            blackList.add(reply.getSender());
+                            blackList.add(reply.getSender().toString());
                             String repl = reply.getContent();
                             String typeOfTrade = repl.substring(0, repl.indexOf("_"));
                             int val = Integer.parseInt(repl.substring(repl.indexOf("_") + 1));
@@ -174,7 +182,7 @@ public class CompukterAgent extends Agent {
                             }
                             break;
                         case ACLMessage.REJECT_PROPOSAL:
-                            blackList.add(reply.getSender());
+                            blackList.add(reply.getSender().toString());
                             step = 0;
                             break;
                         case ACLMessage.REFUSE:
@@ -197,9 +205,12 @@ public class CompukterAgent extends Agent {
                 switch (trade_mes.getPerformative()) {
                     case ACLMessage.SUBSCRIBE:
                         tasksReceived++;
-                        int cap = parseInt(trade_mes.getContent());
+
+                        String str = trade_mes.getContent();
+                        int cap = parseInt(str.substring(0, str.indexOf("_")));
+                        String name = str.substring(str.indexOf("_") + 1);
                         AID task_aid = trade_mes.getSender();
-                        Task task = new Task(task_aid, cap);
+                        Task task = new Task(task_aid, cap, name);
                         taskAgentList.add(task);
                         taskUnitCostList.add(task.complexity / (double)capacity);
                         taskAgentList.sort(new Comparator<Task>() {
@@ -245,13 +256,12 @@ public class CompukterAgent extends Agent {
                 outpp.append(String.format(Locale.US,"%.2f", k)).append(" ");
                 sum += k;
             }
-            //System.out.println(getLocalName() + " ГОВОРИТ " + outp);
             System.out.println(getLocalName() + " N: " + taskUnitCostList.size() + " t: " + String.format(Locale.US,"%.2f", sum) + " contains:" + outp);
         }
 
         public void PerformExchange(ACLMessage msg) {
-            //System.out.println("ПОПЫТКА " + getLocalName() + "<--->" + msg.getSender().getLocalName());
-            blackList.add(msg.getSender());
+            System.out.println("ПОПЫТКА ОБМЕНА " + getLocalName() + "<--->" + msg.getSender().getLocalName());
+            blackList.add(msg.getSender().toString());
             String[] input = msg.getContent().split(" ");
             List<Integer> ext_tasks_complexity = new ArrayList<>();
             List<Double> ext_unit_cost = new ArrayList<>();
@@ -308,7 +318,7 @@ public class CompukterAgent extends Agent {
                     taskAgentList.subList(0,index_of_last_suitable_task).clear();
                     taskUnitCostList.subList(0, index_of_last_suitable_task).clear();
                     myAgent.send(message);
-                    System.out.println(getLocalName() + "--->" + msg.getSender().getLocalName());
+                    System.out.println("ОБМЕН " + getLocalName() + "--->" + msg.getSender().getLocalName());
                     //уведомляем всех о своём изменении
                     NotifyAllCompuktersExcept(msg.getSender());
                     return;
@@ -348,12 +358,13 @@ public class CompukterAgent extends Agent {
                     tradeAgent = msg.getSender();
                     tasksExpected = index_of_last_suitable_task;
                     step = 2;
-                    System.out.println(getLocalName() + "<---" + msg.getSender().getLocalName());
+                    System.out.println("ОБМЕН " + getLocalName() + "<---" + msg.getSender().getLocalName());
                     myAgent.send(accept_message);
                     return;
                 }
             }
             //////ЕСЛИ НИЧЕГО ПОДХОДЯЩЕГО НЕ НАШЛИ ОТПРАВЛЯЕМ REJECT
+            System.out.println("ПОПЫТКА " + getLocalName() + "<--->" + msg.getSender().getLocalName() + " НЕ УДАЛАСЬ");
             ACLMessage reject_message = new ACLMessage(ACLMessage.REJECT_PROPOSAL);
             reject_message.addReceiver(msg.getSender());
             myAgent.send(reject_message);
@@ -384,34 +395,41 @@ public class CompukterAgent extends Agent {
             }
             ACLMessage message = new ACLMessage(ACLMessage.CFP);
             for (DFAgentDescription description : result)
-                if (!description.getName().toString().equals(myAgent.getAID().toString()) && excludedAgent != null && !description.getName().toString().equals(excludedAgent.toString())) message.addReceiver(description.getName());
+                if (!description.getName().toString().equals(myAgent.getAID().toString()) && (excludedAgent == null ||
+                        excludedAgent != null && !description.getName().toString().equals(excludedAgent.toString()))) message.addReceiver(description.getName());
 
-
-//                //менеджера тоже уведомляем
-//            AID manager = null;
-//            template = new DFAgentDescription();
-//            sd = new ServiceDescription();
-//            sd.setType("manager");
-//            template.addServices(sd);
-//            try {
-//                DFAgentDescription[] res = DFService.search(myAgent, template);
-//                if (result.length != 0) {
-//                    manager = res[0].getName();
-//                } else {
-//                    return;
-//                }
-//            } catch (FIPAException fe) {
-//                fe.printStackTrace();
-//            }
-//            message.addReceiver(manager);
-//            message.setContent(String.valueOf(getTimeOfWork()));
             Print();
 
             myAgent.send(message);
         }
 
-        public void checkStopCondition() {
+        //уведомляем менеджера о состоянии блэклиста
+        public void NotifyManager(boolean isBlackListFull) {
+            ACLMessage msg = null;
+            if (isBlackListFull) {
+                msg = new ACLMessage(ACLMessage.CONFIRM);
+                StringBuilder tasks = new StringBuilder();
+                tasks.append(getLocalName() + "_" + capacity + "_" + getTimeOfWork() + "_");
+                for (Task task : taskAgentList)
+                    tasks.append(task.complexity + " " + task.name + "_");
+                msg.setContent(String.valueOf(tasks));
+            } else {
+                msg = new ACLMessage(ACLMessage.CANCEL);
+            }
 
+            AID manager = null;
+            DFAgentDescription template = new DFAgentDescription();
+            ServiceDescription sd = new ServiceDescription();
+            sd.setType("manager");
+            template.addServices(sd);
+            try {
+                DFAgentDescription[] res = DFService.search(myAgent, template);
+                manager = res[0].getName();
+            } catch (FIPAException fe) {
+                fe.printStackTrace();
+            }
+            msg.addReceiver(manager);
+            myAgent.send(msg);
         }
 
         @Override
