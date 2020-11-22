@@ -123,14 +123,15 @@ public class CompukterAgent extends Agent {
                         fe.printStackTrace();
                     }
                     AID firstSuitableComp = null;
-                    //ищем первый попавшийся подходящий комп
+                    //ищем рандомный подходящий комп
+                    ArrayList<Integer> indexes = new ArrayList<>();
                     for (int i = 0; i < result.length; i++) {
                         AID res = result[i].getName();
-                        if (!blackList.contains(res) && !res.toString().equals(myAgent.getAID().toString())) {
-                            firstSuitableComp = res;
-                            break;
-                        }
+                        if (!blackList.contains(res) && !res.toString().equals(myAgent.getAID().toString()))
+                            indexes.add(i);
                     }
+                    Random rand = new Random();
+                    if (indexes.size() > 0) firstSuitableComp = result[rand.nextInt(indexes.size())].getName();
                     if (firstSuitableComp != null)
                         ProposeExchange(firstSuitableComp);
                     else
@@ -278,7 +279,7 @@ public class CompukterAgent extends Agent {
                     //если мы освободили больше времени, чем получил другой агент, то меняемся
                         our_TimeOfWork -= our_comp_loss;
                         ext_TimeOfWork += ext_comp_gain;
-                        index_of_last_suitable_task++;
+                            index_of_last_suitable_task++;
 
                     //если освободили меньше времени, чем получил другой агент, то не меняемся
 
@@ -299,12 +300,12 @@ public class CompukterAgent extends Agent {
                     taskAgentList.subList(0,index_of_last_suitable_task).clear();
                     taskUnitCostList.subList(0, index_of_last_suitable_task).clear();
                     myAgent.send(message);
-
+                    System.out.println(getLocalName() + "--->" + msg.getSender().getLocalName());
                     //уведомляем всех о своём изменении
                     NotifyAllCompuktersExcept(msg.getSender());
                     return;
                 }
-            }
+            } else
             //если мы работаем меньше чем другой агент, пытаемся кого нибудь взять
             if (ext_TimeOfWork > our_TimeOfWork) {
                 int index_of_last_suitable_task = 0;
@@ -331,6 +332,7 @@ public class CompukterAgent extends Agent {
                     tradeAgent = msg.getSender();
                     tasksExpected = index_of_last_suitable_task;
                     step = 2;
+                    System.out.println(getLocalName() + "<---" + msg.getSender().getLocalName());
                     myAgent.send(accept_message);
                     return;
                 }
@@ -390,6 +392,10 @@ public class CompukterAgent extends Agent {
             Print();
 
             myAgent.send(message);
+        }
+
+        public void checkStopCondition() {
+
         }
 
         @Override
