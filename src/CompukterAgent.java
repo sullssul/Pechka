@@ -250,6 +250,7 @@ public class CompukterAgent extends Agent {
         }
 
         public void PerformExchange(ACLMessage msg) {
+            //System.out.println("ПОПЫТКА " + getLocalName() + "<--->" + msg.getSender().getLocalName());
             blackList.add(msg.getSender());
             String[] input = msg.getContent().split(" ");
             List<Integer> ext_tasks_complexity = new ArrayList<>();
@@ -279,10 +280,17 @@ public class CompukterAgent extends Agent {
                     //если мы освободили больше времени, чем получил другой агент, то меняемся
                         our_TimeOfWork -= our_comp_loss;
                         ext_TimeOfWork += ext_comp_gain;
-                            index_of_last_suitable_task++;
+                        index_of_last_suitable_task++;
 
                     //если освободили меньше времени, чем получил другой агент, то не меняемся
 
+                }
+                //прикидываем стоит ли выкинуть последнее взятое задание
+                if (size > 0) {
+                    double ext_comp_gain = taskAgentList.get(index_of_last_suitable_task - 1).complexity / (double) ext_capacity;
+                    double our_comp_loss = taskUnitCostList.get(index_of_last_suitable_task - 1);
+                    if (Math.abs(our_TimeOfWork + our_comp_loss - ext_TimeOfWork + ext_comp_gain) < Math.abs(our_TimeOfWork - ext_TimeOfWork))
+                        index_of_last_suitable_task--;
                 }
                 //если нашли подходящие задания
                 if (index_of_last_suitable_task > 0) {
@@ -316,12 +324,20 @@ public class CompukterAgent extends Agent {
                     double ext_comp_loss = ext_unit_cost.get(index_of_last_suitable_task);
                     double our_comp_gain = ext_tasks_complexity.get(index_of_last_suitable_task) / (double) capacity;
                     //если другой агент освободил больше времени, чем мы получили, то меняемся
+
                         our_TimeOfWork += our_comp_gain;
                         ext_TimeOfWork -= ext_comp_loss;
                         index_of_last_suitable_task++;
 
                     //если освободили меньше времени, чем получил другой агент, то не меняемся
 
+                }
+                //прикидываем стоит ли выкинуть последнее задание
+                if (size > 0) {
+                    double ext_comp_loss = ext_unit_cost.get(index_of_last_suitable_task - 1);
+                    double our_comp_gain = ext_tasks_complexity.get(index_of_last_suitable_task - 1) / (double) capacity;
+                    if (Math.abs(ext_TimeOfWork + ext_comp_loss - our_TimeOfWork + our_comp_gain) < Math.abs(ext_TimeOfWork - our_TimeOfWork))
+                        index_of_last_suitable_task--;
                 }
                 //если нашли подходящее
                 if (index_of_last_suitable_task > 0) {
