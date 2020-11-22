@@ -35,7 +35,6 @@ public class AgentLoader extends Agent {
             DFAgentDescription[] res = DFService.search(this, template);
             if (res.length != 0) {
                 manager = res[0].getName();
-            } else {
                 return;
             }
         } catch (FIPAException fe) {
