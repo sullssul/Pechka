@@ -192,6 +192,13 @@ public class CompukterAgent extends Agent {
                             ACLMessage reject_msg = new ACLMessage(ACLMessage.REFUSE);
                             reject_msg.addReceiver(reply.getSender());
                             myAgent.send(reject_msg);
+                            //когда остается всего два агента они начинают синхронно отправлять друг другу предложения,
+                            // из-за чего процесс затягивается, так он затягиваться не будет
+                            try {
+                                Thread.sleep(20);
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            }
                             break;
                     }
                 else
