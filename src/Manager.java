@@ -40,37 +40,14 @@ public class Manager extends Agent {
         } catch (FIPAException fe) {
             fe.printStackTrace();
         }
-//        try {
-//            Thread.sleep(20000);
-//        } catch (InterruptedException e) {
-//            e.printStackTrace();
-//        }
-        //addBehaviour(new GetRespondFromAll());
+        try {
+            Thread.sleep(20000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
         addBehaviour(new BlackListWaiter());
     }
 
-    public class GetRespondFromAll extends OneShotBehaviour {
-
-
-        @Override
-        public void action() {
-            DFAgentDescription template = new DFAgentDescription();
-            ServiceDescription sd = new ServiceDescription();
-            sd.setType("compukter");
-            template.addServices(sd);
-            DFAgentDescription[] result = null;
-            try {
-                result = DFService.search(myAgent, template);
-            } catch (FIPAException fe) {
-                fe.printStackTrace();
-            }
-            ACLMessage STOP_message = new ACLMessage(ACLMessage.CANCEL);
-            for (DFAgentDescription description : result)
-                STOP_message.addReceiver(description.getName());
-            System.out.println("ВСЕМ СТОЯТЬ");
-            myAgent.send(STOP_message);
-        }
-    }
 
     public class BlackListWaiter extends Behaviour {
         HashMap<String, String> compukterList = new HashMap<>();
