@@ -61,7 +61,10 @@ public class TaskAgent extends Agent {
             sd.setType("compukter");
             template.addServices(sd);
             try {
-                DFAgentDescription[] result = DFService.search(myAgent, template);
+                DFAgentDescription[] result = null;
+                while (result == null || result != null && result.length < 1) {
+                    result = DFService.search(myAgent, template);
+                }
                 compukter = result[0].getName();
             } catch (FIPAException fe) {
                 fe.printStackTrace();
