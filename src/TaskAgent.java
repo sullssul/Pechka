@@ -61,11 +61,24 @@ public class TaskAgent extends Agent {
             sd.setType("compukter");
             template.addServices(sd);
             try {
-                DFAgentDescription[] result = null;
-                while (result == null || result != null && result.length < 1) {
-                    result = DFService.search(myAgent, template);
+                DFAgentDescription[] results = null;
+                while (results == null || results != null && results.length < 1) {
+                    results = DFService.search(myAgent, template);
                 }
-                compukter = result[0].getName();
+
+                for (DFAgentDescription result : results)
+                {
+                    String compName = result.getName().getLocalName();
+                    if (checkCompatibility(compName, getLocalName()))
+                        compukter = result.getName();
+                }
+
+                if (compukter == null)
+                {
+                    System.out.println(getLocalName() + " не нашлось подходящих компьютеров");
+                    return;
+                }
+
             } catch (FIPAException fe) {
                 fe.printStackTrace();
             }
@@ -101,6 +114,22 @@ public class TaskAgent extends Agent {
                 block();
         }
 
+    }
+
+    public boolean checkCompatibility(String compName, String taskName)
+    {
+        String taskRequirements = taskName.substring(taskName.indexOf("-") + 1);
+        String compProvide = compName.substring(compName.indexOf("-") + 1);
+
+        if (taskRequirements.length() != compProvide.length()) {
+            System.out.println(compName + " или " + taskName + " ошибка в свойствах");
+            this.takeDown();
+        }
+
+        for (int i = 0; i < taskRequirements.length(); i++)
+            if (taskRequirements.charAt(i) == '1' && compProvide.charAt(i) == '0')
+                return false;
+        return true;
     }
 
     @Override

@@ -78,7 +78,7 @@ public class CompukterAgent extends Agent {
                 ACLMessage msg = myAgent.receive(mtp);
                 if (msg != null) {
                     switch (msg.getPerformative()) {
-                        //при типе сообщения REQUEST добавляем агент к компьютеру
+                        //при типе сообщения PROPAGATE добавляем агент к компьютеру
                         case ACLMessage.PROPAGATE:
                             String str = msg.getContent();
                             int cap = parseInt(str.substring(0, str.indexOf("_")));
@@ -101,7 +101,7 @@ public class CompukterAgent extends Agent {
                             });
                             NotifyAllCompuktersExcept(null);
                             break;
-                            //при INFORM удаляем комп, который обновился, из ЧС
+                            //при CFP удаляем комп, который обновился, из ЧС
                         case ACLMessage.CFP:
                             blackList.remove(msg.getSender().toString());
                             NotifyManager(false);
@@ -171,10 +171,25 @@ public class CompukterAgent extends Agent {
                                 ACLMessage req_to_tasks_msg = new ACLMessage();
                                 req_to_tasks_msg.setContent(reply.getSender().toString());
                                 //рассылаем сообщения заданиям чтобы они приписались к другому агенту и удаляем их у себя
-                                for (int i = 0; i < val; i++)
-                                    req_to_tasks_msg.addReceiver(taskAgentList.get(i).aid);
-                                taskAgentList.subList(0,val).clear();
-                                taskUnitCostList.subList(0, val).clear();
+                                ArrayList<Integer> taskIndexes = new ArrayList<>();
+                                for (int i = 0, j = 0; i < taskAgentList.size() && j < val; i++)
+                                    if (checkCompatibility(reply.getSender().getLocalName(), taskAgentList.get(i).name))
+                                    {
+                                        taskIndexes.add(i);
+                                        j++;
+                                    }
+
+                                for (int index : taskIndexes)
+                                    req_to_tasks_msg.addReceiver(taskAgentList.get(index).aid);
+
+                                //удаляем отданные задания у себя
+                                taskIndexes.stream()
+                                        .sorted(Comparator.reverseOrder())
+                                        .forEach(i->taskAgentList.remove(i.intValue()));
+                                taskIndexes.stream()
+                                        .sorted(Comparator.reverseOrder())
+                                        .forEach(i->taskUnitCostList.remove(i.intValue()));
+
                                 step = 0;
                                 myAgent.send(req_to_tasks_msg);
 
@@ -273,57 +288,66 @@ public class CompukterAgent extends Agent {
             List<Integer> ext_tasks_complexity = new ArrayList<>();
             List<Double> ext_unit_cost = new ArrayList<>();
             int ext_capacity = parseInt(input[0]);
-            int sum_complexity = 0;
+            double ext_TimeOfWork = Double.parseDouble(input[1]);
 
-            for (int i = 1; i < input.length; i++) {
+            for (int i = 2; i < input.length; i++) {
                 int k = parseInt(input[i]);
-                sum_complexity += k;
                 ext_tasks_complexity.add(k);
                 ext_unit_cost.add(k / (double) ext_capacity);
             }
-            double ext_TimeOfWork = sum_complexity / (double) ext_capacity;
             double our_TimeOfWork = getTimeOfWork();
 
 
             //если мы работаем больше чем другой агент, то пытаемся отдать ему задания, начиная с самых простых
             if (ext_TimeOfWork < our_TimeOfWork) {
-                int index_of_last_suitable_task = 0;
+                int index_of_last_checked_task = 0;
                 int size = taskAgentList.size();
+                List<Integer> taskIndexes = new ArrayList<>();
 
-                while (our_TimeOfWork > ext_TimeOfWork && index_of_last_suitable_task < size) {
-                    //предполагаем как изменится время если мы отдадим задание
-                    double ext_comp_gain = taskAgentList.get(index_of_last_suitable_task).complexity / (double)ext_capacity;
-                    double our_comp_loss = taskUnitCostList.get(index_of_last_suitable_task);
-                    //если мы освободили больше времени, чем получил другой агент, то меняемся
+                while (our_TimeOfWork > ext_TimeOfWork && index_of_last_checked_task < size) {
+                    //предполагаем как изменится время если мы отдадим задании
+                    if (checkCompatibility(msg.getSender().getLocalName(), taskAgentList.get(index_of_last_checked_task).name)) {
+                        double ext_comp_gain = taskAgentList.get(index_of_last_checked_task).complexity / (double) ext_capacity;
+                        double our_comp_loss = taskUnitCostList.get(index_of_last_checked_task);
                         our_TimeOfWork -= our_comp_loss;
                         ext_TimeOfWork += ext_comp_gain;
-                        index_of_last_suitable_task++;
+                        taskIndexes.add(index_of_last_checked_task);
+                    }
 
-                    //если освободили меньше времени, чем получил другой агент, то не меняемся
+                    index_of_last_checked_task++;
 
                 }
                 //прикидываем стоит ли выкинуть последнее взятое задание
-                if (size > 0) {
-                    double ext_comp_gain = taskAgentList.get(index_of_last_suitable_task - 1).complexity / (double) ext_capacity;
-                    double our_comp_loss = taskUnitCostList.get(index_of_last_suitable_task - 1);
+                if (taskIndexes.size() > 0) {
+                    double ext_comp_gain = taskAgentList.get(taskIndexes.get(taskIndexes.size() - 1)).complexity / (double) ext_capacity;
+                    double our_comp_loss = taskUnitCostList.get(taskIndexes.get(taskIndexes.size() - 1));
                     if (Math.abs(our_TimeOfWork + our_comp_loss - ext_TimeOfWork + ext_comp_gain) < Math.abs(our_TimeOfWork - ext_TimeOfWork))
-                        index_of_last_suitable_task--;
+                    {
+                        taskIndexes.remove(taskIndexes.size() - 1);
+                    }
                 }
                 //если нашли подходящие задания
-                if (index_of_last_suitable_task > 0) {
+                if (taskIndexes.size() > 0) {
                     //отправляем сообщение чтобы агент готовился к приему заданий
                     ACLMessage accept_message = new ACLMessage(ACLMessage.ACCEPT_PROPOSAL);
-                    accept_message.setContent("getReady_" + index_of_last_suitable_task);
+                    accept_message.setContent("getReady_" + taskIndexes.size());
                     accept_message.addReceiver(msg.getSender());
                     myAgent.send(accept_message);
 
                     ACLMessage message = new ACLMessage();
                     message.setContent(msg.getSender().toString());
                     //рассылаем сообщения заданиям чтобы они приписались к другому агенту и удаляем их у себя
-                    for (int i = 0; i < index_of_last_suitable_task; i++)
-                        message.addReceiver(taskAgentList.get(i).aid);
-                    taskAgentList.subList(0,index_of_last_suitable_task).clear();
-                    taskUnitCostList.subList(0, index_of_last_suitable_task).clear();
+                    for (int index : taskIndexes)
+                        message.addReceiver(taskAgentList.get(index).aid);
+
+                    //удаляем отданные задания у себя
+                    taskIndexes.stream()
+                            .sorted(Comparator.reverseOrder())
+                            .forEach(i->taskAgentList.remove(i.intValue()));
+                    taskIndexes.stream()
+                            .sorted(Comparator.reverseOrder())
+                            .forEach(i->taskUnitCostList.remove(i.intValue()));
+
                     myAgent.send(message);
                     System.out.println("ОБМЕН " + getLocalName() + "--->" + msg.getSender().getLocalName());
                     //уведомляем всех о своём изменении
@@ -340,13 +364,11 @@ public class CompukterAgent extends Agent {
                     //предполагаем как изменится время если мы ВОЗЬМЕМ задание
                     double ext_comp_loss = ext_unit_cost.get(index_of_last_suitable_task);
                     double our_comp_gain = ext_tasks_complexity.get(index_of_last_suitable_task) / (double) capacity;
-                    //если другой агент освободил больше времени, чем мы получили, то меняемся
 
                         our_TimeOfWork += our_comp_gain;
                         ext_TimeOfWork -= ext_comp_loss;
                         index_of_last_suitable_task++;
 
-                    //если освободили меньше времени, чем получил другой агент, то не меняемся
 
                 }
                 //прикидываем стоит ли выкинуть последнее задание
@@ -379,13 +401,31 @@ public class CompukterAgent extends Agent {
 
         public void ProposeExchange(AID comp) {
             ACLMessage message = new ACLMessage(ACLMessage.PROPOSE);
-            StringBuilder myinfo = new StringBuilder(capacity + " ");
+            StringBuilder myinfo = new StringBuilder(capacity + " " + getTimeOfWork() + " ");
+
             for (Task task : taskAgentList)
-                myinfo.append(task.complexity).append(" ");
+                if (checkCompatibility(comp.getLocalName(), task.name))
+                    myinfo.append(task.complexity).append(" ");
+
             message.setContent(myinfo.toString());
             message.addReceiver(comp);
             step = 1;
             myAgent.send(message);
+        }
+
+        public boolean checkCompatibility(String compName, String taskName)
+        {
+            String taskRequirements = taskName.substring(taskName.indexOf("-") + 1);
+            String compProvide = compName.substring(compName.indexOf("-") + 1);
+
+            if (taskRequirements.length() != compProvide.length()) {
+                System.out.println(compName + " или " + taskName + " ошибка в свойствах");
+            }
+
+            for (int i = 0; i < taskRequirements.length(); i++)
+                if (taskRequirements.charAt(i) == '1' && compProvide.charAt(i) == '0')
+                    return false;
+            return true;
         }
 
         //уведомляем все компьютеры, кроме переданного, о своём обновлении (вызываем когда делаем обмен или добавляем задание)
